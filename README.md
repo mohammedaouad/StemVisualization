@@ -123,4 +123,4 @@ The anatomical definitions and planning workflow reference the `automaticFemoral
 
 ---
 
-© FH Aachen — Medical Engineering · 2025–2026
+Medical Engineering · 2025–2026
