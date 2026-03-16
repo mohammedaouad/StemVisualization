@@ -57,15 +57,16 @@ StemVis/
 
 ## Data
 
-The femur mesh was obtained from the open-source dataset:
+The femur mesh was obtained from the following open-source dataset:
 
-**HLRS Numerical Methods in Biomechanics** — FH01 clinical/prosthesis/parametric original data  
-[HLRS-NUM-Biomechanics](https://github.com/HLRS-NUM-Biomechanics)
+**Scanning Spongiosa: A set of Clinical Computed Tomography Scans of Human Femoral Heads**  
+Gebert, J.; Schneider, R.; Schnabel, B.; Pelzer, F.; Helwig, P.; Schenkengel, J.-P. (2023)  
+HLRS-NUM-Biomechanics, Universität Stuttgart  
+DOI: [10.18419/DARUS-3065](https://doi.org/10.18419/DARUS-3065)
 
-The CT data was segmented manually using **3D Slicer** and exported as STL in RAS orientation.
+The CT data was segmented manually using **3D Slicer** and exported as STL in RAS orientation.  
+Place the exported file at `Data/Femur_Bone.stl` before running the tool.
 
-The STL file is not included in this repository. Download the original dataset from the source above, segment the femur in 3D Slicer, and place the exported STL at `Data/Femur_Bone.stl`.
----
 
 ## Installation
 
