@@ -1,6 +1,6 @@
 # StemVis — Femoral Stem Surgical Planning Tool
 
-A Python-based 3D surgical planning tool for total hip arthroplasty (THA), developed as part of a Master's project in Medical Engineering at **FH Aachen University of Applied Sciences**.
+A Python-based 3D surgical planning tool for total hip arthroplasty (THA).
 
 The tool processes femur bone meshes and computes key anatomical landmarks used in femoral stem implant planning, with an interactive dual-viewport visualization interface.
 
@@ -115,13 +115,7 @@ Install with:
 pip install -r requirements.txt
 ```
 
----
 
-## Academic Context
-
-Developed as part of a Master's thesis in **Medical Engineering** at **FH Aachen University of Applied Sciences**, focusing on computer-assisted planning for total hip arthroplasty.
-
-The anatomical definitions and planning workflow reference the `automaticFemoralCS` toolbox (RWTH Aachen, MATLAB) by Modenese et al.
 
 ---
 
