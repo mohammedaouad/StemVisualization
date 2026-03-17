@@ -123,7 +123,7 @@ class Visualisation:
         # offset vector — positive = away from HJC, negative = toward HJC
         offset_vec = neck_offset_mm * neck_dir
 
-        # ── LEFT panel: CCD only, nothing shifts ─────────────────────────
+        # LEFT panel: CCD only
         tip_L = tip_base
         toe_L = toe_base
 
@@ -156,8 +156,8 @@ class Visualisation:
             [toe_L.tolist()], ["  Stem Toe"], font_size=8,
             text_color="#AA6600", always_visible=True, shape_opacity=0.0)
 
-        # ── RIGHT panel: whole system shifts along neck axis ──────────────
-        # shift tip, toe, mesh — HJC stays fixed
+        # RIGHT panel
+        # shift tip, toe, mesh. HJC stays fixed
         tip_R = tip_base + offset_vec
         toe_R = toe_base + offset_vec
         c1_R  = self.c1  + offset_vec
@@ -166,8 +166,6 @@ class Visualisation:
         for a in self.R.values():
             if a is not None: self.pl_right.remove_actor(a)
 
-
-        # implant — now built from shifted tip/toe
         neck_vec_R  = self.hjc - tip_R
         neck_len_R  = float(np.linalg.norm(neck_vec_R))
         neck_ctr_R  = ((tip_R + self.hjc) / 2).tolist()
@@ -194,7 +192,7 @@ class Visualisation:
             [toe_R.tolist()], ["  Stem Toe"], font_size=8,
             text_color="#AA6600", always_visible=True, shape_opacity=0.0)
 
-        # resection fixed at 30% — uses shifted tip and shifted mesh
+        # resection fixed at 30% 
         res_pt, res_norm, _ = compute_resection_plane(
             tip_R, self.hjc, fraction=RESECTION_FRAC)
         cut = resect_femur_mesh(mesh_R, res_pt, res_norm, c1_R)
