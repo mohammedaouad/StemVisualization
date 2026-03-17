@@ -14,6 +14,8 @@ NECK_COL = "#3A8FD4"
 LIME     = "#7CFC00"
 ORANGE   = "#FF8C00"
 
+RESECTION_FRAC = 0.30
+
 
 def align_to_z(mesh, vertices):
     centered = vertices - vertices.mean(axis=0)
@@ -56,10 +58,8 @@ def add_landmarks(pl, hjc, head_radius, axis_dir, c1, c2):
 
 
 class Visualisation:
-    """Handles all 3D rendering — two BackgroundPlotters, left and right."""
 
     def __init__(self, mesh_path):
-        # load and process
         mesh = pv.read(mesh_path).clean()
         cx = (mesh.bounds[0] + mesh.bounds[1]) / 2
         cy = (mesh.bounds[2] + mesh.bounds[3]) / 2
@@ -74,7 +74,6 @@ class Visualisation:
         self.axis_origin, self.axis_dir, \
             self.c1, self.c2, _, _          = compute_shaft_axis(vertices)
 
-        # create the two plotters
         self.pl_left  = BackgroundPlotter(show=False)
         self.pl_right = BackgroundPlotter(show=False)
         self.pl_left.set_background(BG)
@@ -87,9 +86,11 @@ class Visualisation:
                   "tip_lbl": None, "toe_lbl": None}
         self.R = {"stem": None, "neck": None, "tip": None, "toe": None,
                   "tip_lbl": None, "toe_lbl": None,
-                  "cut": None, "cut_wire": None, "disk": None, "dot": None}
+                  "mesh": None, "cut": None, "cut_wire": None,
+                  "disk": None, "dot": None}
 
     def _init_left(self):
+        # static full femur — never changes
         self.pl_left.add_mesh(self.mesh, color=BONE, style="wireframe", opacity=0.055)
         add_landmarks(self.pl_left, self.hjc, self.head_radius,
                       self.axis_dir, self.c1, self.c2)
@@ -99,6 +100,7 @@ class Visualisation:
         self.pl_left.reset_camera()
 
     def _init_right(self):
+        # no static mesh — added dynamically so it can shift with neck offset
         add_landmarks(self.pl_right, self.hjc, self.head_radius,
                       self.axis_dir, self.c1, self.c2)
         self.pl_right.add_axes(xlabel="R", ylabel="A", zlabel="S",
@@ -106,69 +108,96 @@ class Visualisation:
         self.pl_right.view_isometric()
         self.pl_right.reset_camera()
 
-    def update(self, ccd_deg, frac):
+    def update(self, ccd_deg, neck_offset_mm):
         cam_right = self.pl_right.camera.copy()
 
-        tip, toe = compute_stem_points(
+        # base tip from CCD angle — no offset yet
+        tip_base, toe_base = compute_stem_points(
             self.vertices, self.axis_origin, self.axis_dir,
             self.hjc, ccd_deg, self.c1)
 
-        neck_vec    = self.hjc - tip
-        neck_len    = float(np.linalg.norm(neck_vec))
-        neck_center = ((tip + self.hjc) / 2).tolist()
-        neck_dir    = (neck_vec / neck_len).tolist()
-        stem_len    = float(np.linalg.norm(tip - toe))
-        stem_center = ((tip + toe) / 2).tolist()
+        # neck axis direction (HJC → StemTip, i.e. away from HJC)
+        neck_vec  = tip_base - self.hjc
+        neck_dir  = neck_vec / np.linalg.norm(neck_vec)
 
-        # left panel
+        # offset vector — positive = away from HJC, negative = toward HJC
+        offset_vec = neck_offset_mm * neck_dir
+
+        # ── LEFT panel: CCD only, nothing shifts ─────────────────────────
+        tip_L = tip_base
+        toe_L = toe_base
+
         for a in self.L.values():
             if a is not None: self.pl_left.remove_actor(a)
 
+        neck_vec_L  = self.hjc - tip_L
+        neck_len_L  = float(np.linalg.norm(neck_vec_L))
+        neck_ctr_L  = ((tip_L + self.hjc) / 2).tolist()
+        neck_dir_L  = (neck_vec_L / neck_len_L).tolist()
+        stem_len_L  = float(np.linalg.norm(tip_L - toe_L))
+        stem_ctr_L  = ((tip_L + toe_L) / 2).tolist()
+
         self.L["stem"] = self.pl_left.add_mesh(
-            pv.Cylinder(center=stem_center, direction=self.axis_dir.tolist(),
-                        radius=2.5, height=stem_len, resolution=40, capping=True),
+            pv.Cylinder(center=stem_ctr_L, direction=self.axis_dir.tolist(),
+                        radius=2.5, height=stem_len_L, resolution=40, capping=True),
             color=STEM_COL, smooth_shading=True)
         self.L["neck"] = self.pl_left.add_mesh(
-            pv.Cylinder(center=neck_center, direction=neck_dir,
-                        radius=2.5, height=neck_len, resolution=40, capping=True),
+            pv.Cylinder(center=neck_ctr_L, direction=neck_dir_L,
+                        radius=2.5, height=neck_len_L, resolution=40, capping=True),
             color=NECK_COL, smooth_shading=True)
         self.L["tip"] = self.pl_left.add_mesh(
-            pv.Sphere(radius=4.5, center=tip.tolist()), color="white")
+            pv.Sphere(radius=4.5, center=tip_L.tolist()), color="white")
         self.L["toe"] = self.pl_left.add_mesh(
-            pv.Sphere(radius=4.5, center=toe.tolist()), color=ORANGE)
+            pv.Sphere(radius=4.5, center=toe_L.tolist()), color=ORANGE)
         self.L["tip_lbl"] = self.pl_left.add_point_labels(
-            [tip.tolist()], ["  Stem Tip"], font_size=8,
+            [tip_L.tolist()], ["  Stem Tip"], font_size=8,
             text_color="#888888", always_visible=True, shape_opacity=0.0)
         self.L["toe_lbl"] = self.pl_left.add_point_labels(
-            [toe.tolist()], ["  Stem Toe"], font_size=8,
+            [toe_L.tolist()], ["  Stem Toe"], font_size=8,
             text_color="#AA6600", always_visible=True, shape_opacity=0.0)
 
-        # right panel
+        # ── RIGHT panel: whole system shifts along neck axis ──────────────
+        # shift tip, toe, mesh — HJC stays fixed
+        tip_R = tip_base + offset_vec
+        toe_R = toe_base + offset_vec
+        c1_R  = self.c1  + offset_vec
+        mesh_R = self.mesh.translate(offset_vec.tolist(), inplace=False)
+
         for a in self.R.values():
             if a is not None: self.pl_right.remove_actor(a)
 
+
+        # implant — now built from shifted tip/toe
+        neck_vec_R  = self.hjc - tip_R
+        neck_len_R  = float(np.linalg.norm(neck_vec_R))
+        neck_ctr_R  = ((tip_R + self.hjc) / 2).tolist()
+        neck_dir_R  = (neck_vec_R / neck_len_R).tolist()
+        stem_len_R  = float(np.linalg.norm(tip_R - toe_R))
+        stem_ctr_R  = ((tip_R + toe_R) / 2).tolist()
+
         self.R["stem"] = self.pl_right.add_mesh(
-            pv.Cylinder(center=stem_center, direction=self.axis_dir.tolist(),
-                        radius=2.5, height=stem_len, resolution=40, capping=True),
+            pv.Cylinder(center=stem_ctr_R, direction=self.axis_dir.tolist(),
+                        radius=2.5, height=stem_len_R, resolution=40, capping=True),
             color=STEM_COL, smooth_shading=True)
         self.R["neck"] = self.pl_right.add_mesh(
-            pv.Cylinder(center=neck_center, direction=neck_dir,
-                        radius=2.5, height=neck_len, resolution=40, capping=True),
+            pv.Cylinder(center=neck_ctr_R, direction=neck_dir_R,
+                        radius=2.5, height=neck_len_R, resolution=40, capping=True),
             color=NECK_COL, smooth_shading=True)
         self.R["tip"] = self.pl_right.add_mesh(
-            pv.Sphere(radius=4.5, center=tip.tolist()), color="white")
+            pv.Sphere(radius=4.5, center=tip_R.tolist()), color="white")
         self.R["toe"] = self.pl_right.add_mesh(
-            pv.Sphere(radius=4.5, center=toe.tolist()), color=ORANGE)
+            pv.Sphere(radius=4.5, center=toe_R.tolist()), color=ORANGE)
         self.R["tip_lbl"] = self.pl_right.add_point_labels(
-            [tip.tolist()], ["  Stem Tip"], font_size=8,
+            [tip_R.tolist()], ["  Stem Tip"], font_size=8,
             text_color="#888888", always_visible=True, shape_opacity=0.0)
         self.R["toe_lbl"] = self.pl_right.add_point_labels(
-            [toe.tolist()], ["  Stem Toe"], font_size=8,
+            [toe_R.tolist()], ["  Stem Toe"], font_size=8,
             text_color="#AA6600", always_visible=True, shape_opacity=0.0)
 
+        # resection fixed at 30% — uses shifted tip and shifted mesh
         res_pt, res_norm, _ = compute_resection_plane(
-            tip, self.hjc, fraction=frac)
-        cut = resect_femur_mesh(self.mesh, res_pt, res_norm, self.c1)
+            tip_R, self.hjc, fraction=RESECTION_FRAC)
+        cut = resect_femur_mesh(mesh_R, res_pt, res_norm, c1_R)
 
         self.R["cut"]      = self.pl_right.add_mesh(
             cut, color=BONE, opacity=0.3, smooth_shading=True)
@@ -181,5 +210,4 @@ class Visualisation:
         self.R["dot"] = self.pl_right.add_mesh(
             pv.Sphere(radius=3.0, center=res_pt.tolist()), color=ORANGE)
 
-        # restore right camera
         self.pl_right.camera = cam_right

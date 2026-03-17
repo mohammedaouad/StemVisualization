@@ -15,9 +15,9 @@ class MainWindow(QMainWindow):
         self.resize(1800, 960)
         self.setStyleSheet(STYLE)
 
-        self.vis = Visualisation(mesh_path)
-        self.ccd_deg = 125.0
-        self.frac    = 0.75
+        self.vis            = Visualisation(mesh_path)
+        self.ccd_deg        = 125.0
+        self.neck_offset_mm = 0.0
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -92,49 +92,49 @@ class MainWindow(QMainWindow):
         sb.addLayout(ccd_range)
         sb.addSpacing(20)
 
-        # resection level
-        res_title = QLabel("RESECTION LEVEL")
-        res_title.setObjectName("title")
-        sb.addWidget(res_title)
+        # neck offset
+        neck_title = QLabel("NECK OFFSET")
+        neck_title.setObjectName("title")
+        sb.addWidget(neck_title)
 
-        self.frac_value_lbl = QLabel("75")
-        self.frac_value_lbl.setObjectName("value")
+        self.neck_value_lbl = QLabel("+0.0")
+        self.neck_value_lbl.setObjectName("value")
 
-        frac_row = QHBoxLayout()
-        frac_row.addWidget(self.frac_value_lbl)
-        neck_lbl = QLabel("% neck"); neck_lbl.setObjectName("unit")
-        frac_row.addWidget(neck_lbl)
-        frac_row.addStretch()
+        neck_row = QHBoxLayout()
+        neck_row.addWidget(self.neck_value_lbl)
+        mm_lbl = QLabel("mm"); mm_lbl.setObjectName("unit")
+        neck_row.addWidget(mm_lbl)
+        neck_row.addStretch()
 
-        self.frac_input = QLineEdit("75")
-        self.frac_input.setFixedWidth(55)
-        self.frac_input.setStyleSheet(
+        self.neck_input = QLineEdit("0")
+        self.neck_input.setFixedWidth(55)
+        self.neck_input.setStyleSheet(
             f"background:{BORDER}; color:{TEXT_HI}; border:1px solid #2E3F50;"
             f"border-radius:4px; padding:3px 6px; font-family:Consolas; font-size:12px;")
-        frac_row.addWidget(self.frac_input)
+        neck_row.addWidget(self.neck_input)
 
-        frac_btn = QPushButton("↵")
-        frac_btn.setFixedWidth(28)
-        frac_btn.setStyleSheet(
+        neck_btn = QPushButton("↵")
+        neck_btn.setFixedWidth(28)
+        neck_btn.setStyleSheet(
             f"background:{ACCENT}; color:#000; border:none; border-radius:4px; font-size:13px; padding:3px;")
-        frac_btn.clicked.connect(self.on_frac_input)
-        self.frac_input.returnPressed.connect(self.on_frac_input)
-        frac_row.addWidget(frac_btn)
-        sb.addLayout(frac_row)
+        neck_btn.clicked.connect(self.on_neck_input)
+        self.neck_input.returnPressed.connect(self.on_neck_input)
+        neck_row.addWidget(neck_btn)
+        sb.addLayout(neck_row)
 
-        self.frac_slider = QSlider(Qt.Orientation.Horizontal)
-        self.frac_slider.setRange(20, 80)
-        self.frac_slider.setValue(75)
-        self.frac_slider.valueChanged.connect(self.on_frac_changed)
-        sb.addWidget(self.frac_slider)
+        self.neck_slider = QSlider(Qt.Orientation.Horizontal)
+        self.neck_slider.setRange(-200, 200)  # -20.0 to +20.0 mm (x10)
+        self.neck_slider.setValue(0)
+        self.neck_slider.valueChanged.connect(self.on_neck_changed)
+        sb.addWidget(self.neck_slider)
 
-        frac_range = QHBoxLayout()
-        lbl_20 = QLabel("20%"); lbl_20.setObjectName("unit")
-        lbl_80 = QLabel("80%"); lbl_80.setObjectName("unit")
-        frac_range.addWidget(lbl_20)
-        frac_range.addStretch()
-        frac_range.addWidget(lbl_80)
-        sb.addLayout(frac_range)
+        neck_range = QHBoxLayout()
+        lbl_n20 = QLabel("-20mm"); lbl_n20.setObjectName("unit")
+        lbl_p20 = QLabel("+20mm"); lbl_p20.setObjectName("unit")
+        neck_range.addWidget(lbl_n20)
+        neck_range.addStretch()
+        neck_range.addWidget(lbl_p20)
+        sb.addLayout(neck_range)
         sb.addSpacing(24)
 
         div2 = QFrame()
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
             ("#E2E8F0", "Stem Tip"),
             ("#FF8C00", "Stem Toe"),
             ("#00CED1", "Shaft axis"),
-            ("#FF8C00", "Resection plane"),
+            ("#FF8C00", "Resection (30%)"),
         ]:
             row = QHBoxLayout()
             row.setSpacing(6)
@@ -182,8 +182,8 @@ class MainWindow(QMainWindow):
         root.addWidget(vp, stretch=1)
 
         for plotter, title_text in [
-            (self.vis.pl_left,  "  PRE-OP  ·  Full Femur"),
-            (self.vis.pl_right, "  POST-RESECTION  ·  Resected Femur"),
+            (self.vis.pl_left,  "  PRE-OP  ·  Full Femur  |  CCD angle"),
+            (self.vis.pl_right, "  POST-RESECTION  ·  Neck Offset"),
         ]:
             frame = QWidget()
             fl = QVBoxLayout(frame)
@@ -201,19 +201,19 @@ class MainWindow(QMainWindow):
                 sep.setFrameShape(QFrame.Shape.VLine)
                 vp_layout.addWidget(sep)
 
-        self.vis.update(self.ccd_deg, self.frac)
+        self.vis.update(self.ccd_deg, self.neck_offset_mm)
 
     def on_ccd_changed(self, val):
         self.ccd_deg = val / 10.0
         self.ccd_value_lbl.setText(f"{self.ccd_deg:.1f}")
         self.ccd_input.setText(f"{self.ccd_deg:.1f}")
-        self.vis.update(self.ccd_deg, self.frac)
+        self.vis.update(self.ccd_deg, self.neck_offset_mm)
 
-    def on_frac_changed(self, val):
-        self.frac = val / 100.0
-        self.frac_value_lbl.setText(str(val))
-        self.frac_input.setText(str(val))
-        self.vis.update(self.ccd_deg, self.frac)
+    def on_neck_changed(self, val):
+        self.neck_offset_mm = val / 10.0
+        self.neck_value_lbl.setText(f"{self.neck_offset_mm:+.1f}")
+        self.neck_input.setText(f"{self.neck_offset_mm:+.1f}")
+        self.vis.update(self.ccd_deg, self.neck_offset_mm)
 
     def on_ccd_input(self):
         try:
@@ -222,10 +222,10 @@ class MainWindow(QMainWindow):
         except ValueError:
             pass
 
-    def on_frac_input(self):
+    def on_neck_input(self):
         try:
-            val = max(20, min(80, int(self.frac_input.text())))
-            self.frac_slider.setValue(val)
+            val = max(-20.0, min(20.0, float(self.neck_input.text())))
+            self.neck_slider.setValue(int(val * 10))
         except ValueError:
             pass
 
