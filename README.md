@@ -1,7 +1,6 @@
 # StemVis — Femoral Stem Surgical Planning Tool
 
-A Python-based 3D surgical planning tool for total hip arthroplasty (THA).
-
+A Python-based 3D surgical planning tool for total hip arthroplasty (THA), developed as part of a personal project.
 The tool processes femur bone meshes and computes key anatomical landmarks used in femoral stem implant planning, with an interactive dual-viewport visualization interface.
 
 ---
@@ -20,7 +19,10 @@ The shaft axis is defined using two cross-sectional slices taken at different he
 The Stem Tip is the point along the shaft axis where the CCD angle (Caput-Collum-Diaphysis angle) is satisfied. The CCD angle is the angle between the neck axis (Stem Tip → HJC) and the stem axis (Stem Tip → Stem Toe). The tool scans along the shaft axis to find the exact point where this angle matches the target value set by the user (between 115° and 135°).
 
 ### Neck Resection
-The resection plane is placed along the neck axis at a user-defined fraction of the neck length (between 20% and 80%), measured from the Stem Tip toward the HJC. This matches the standard surgical workflow for femoral neck osteotomy.
+The resection plane is fixed at 30% of the neck length, measured from the Stem Tip toward the HJC. This matches the standard surgical workflow for femoral neck osteotomy.
+
+### Neck Offset & LLD Simulation
+The neck offset parameter shifts the entire system (bone mesh + implant) along the neck axis (HJC → Stem Tip direction), while keeping the HJC fixed. This simulates the effect of neck length variation on Leg Length Discrepancy (LLD). A positive offset moves the system away from HJC (longer neck), a negative offset moves it toward HJC (shorter neck).
 
 ---
 
@@ -29,18 +31,20 @@ The resection plane is placed along the neck axis at a user-defined fraction of 
 - Automatic PCA-based alignment of the femur long axis
 - Femoral Head Center detection via sphere fitting
 - Shaft axis computation using median cross-sectional slice centers
-- Stem Tip placement driven by CCD angle (115–135°)
-- Interactive neck resection with adjustable resection level (20–80% of neck)
-- Dual-viewport visualization: full femur (pre-op) vs resected femur (post-resection)
+- Stem Tip placement driven by CCD angle (115°–135°)
+- Neck resection fixed at 30% of neck length
+- Neck offset parameter (−20mm to +20mm) for LLD simulation
+- Dual-viewport visualization:
+  - **Left — Pre-Op:** full femur, CCD (Caput-Collum-Diaphysis angle) angle controls implant placement
+  - **Right — Post-Resection:** neck offset shifts the whole mesh for LLD (Leg Length Discrepancy) analysis
 - Professional Qt-based GUI with live sliders and direct value input
 
 ---
 
 ## Project Structure
-
 ```
 StemVis/
-├── main.py             # Entry point — Qt window and event handling
+├── main.py             # Entry point
 ├── ui.py               # UI colors and stylesheet
 ├── visualisation.py    # 3D rendering — PyVista + PyVistaqt
 ├── HJC.py              # Femoral head center detection
@@ -67,12 +71,12 @@ DOI: [10.18419/DARUS-3065](https://doi.org/10.18419/DARUS-3065)
 The CT data was segmented manually using **3D Slicer** and exported as STL in RAS orientation.  
 Place the exported file at `Data/Femur_Bone.stl` before running the tool.
 
+---
 
 ## Installation
-
 ```bash
-git clone https://github.com/YOUR_USERNAME/StemVis.git
-cd StemVis
+git clone https://github.com/mohammedaouad/StemVisualization.git
+cd StemVisualization
 
 python -m venv .venv
 .venv\Scripts\activate        # Windows
@@ -84,24 +88,18 @@ pip install -r requirements.txt
 ---
 
 ## Usage
-
 ```bash
 python main.py
 ```
 
 The application opens two interactive 3D viewports:
 
-- **Left — Pre-Op:** full femur with stem and neck axis overlay
-- **Right — Post-Resection:** resected femur showing the osteotomy result
-
-Use the sidebar sliders or type a value directly to adjust:
-- **CCD Angle** (115°–135°) — controls stem tip position along the shaft
-- **Resection Level** (20%–80% of neck length) — controls where the neck is cut
+- **Left — Pre-Op:** full femur with stem and neck axis overlay. Use the **CCD Angle** slider to adjust implant placement.
+- **Right — Post-Resection:** resected femur (neck cut at 30%). Use the **Neck Offset** slider to simulate LLD by shifting the whole system along the neck axis.
 
 ---
 
 ## Dependencies
-
 ```
 numpy
 scipy
@@ -115,8 +113,11 @@ Install with:
 pip install -r requirements.txt
 ```
 
-
-
 ---
 
-Medical Engineering · 2025–2026
+## Context
+
+Built as a personal project during my Master's studies in **Medical Engineering** at **FH Aachen University of Applied Sciences**, inspired by computer-assisted orthopedic surgery planning workflows.
+
+
+© FH Aachen — Medical Engineering · 2025–2026
